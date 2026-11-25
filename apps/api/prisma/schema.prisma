@@ -6,3 +6,58 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id           String       @id @default(uuid()) @db.Uuid
+  email        String       @unique @db.VarChar(320)
+  passwordHash String
+  createdAt    DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(6)
+  memberships  Membership[]
+  refreshTokens RefreshToken[]
+}
+
+model Organization {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @db.VarChar(120)
+  slug        String       @unique @db.VarChar(63)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(6)
+  memberships Membership[]
+}
+
+model Membership {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  organizationId String           @db.Uuid
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now()) @db.Timestamptz(6)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  tokenHash String    @unique @db.Char(64)
+  familyId  String    @db.Uuid
+  userId    String    @db.Uuid
+  expiresAt DateTime  @db.Timestamptz(6)
+  revokedAt DateTime? @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([familyId, revokedAt])
+}
