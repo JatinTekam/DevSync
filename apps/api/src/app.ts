@@ -3,6 +3,7 @@ import express from "express";
 import { corsOptions } from "./config/cors.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { AppError } from "./shared/errors/app-error.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
 
 export function createApp() {
   const app = express();
@@ -17,6 +18,9 @@ export function createApp() {
       service: "devsync-api",
     });
   });
+
+  //Auth-Routes
+  app.use("/api/v1/auth",authRouter)
 
   app.use((_req, _res, next) => {
     next(new AppError(404, "NOT_FOUND", "Route not found"));
