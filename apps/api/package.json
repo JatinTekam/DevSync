@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node --env-file=.env.development --import=tsx --watch src/server.ts",
     "build": "tsc",
-    "start": "node --env-file=.env.production dist/server.js"
+    "start": "node --env-file=.env.production dist/server.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -16,7 +17,10 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.0.0",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.2",
     "tsx": "^4.20.0",
-    "typescript": "^6.0.0"
+    "typescript": "^6.0.0",
+    "vitest": "^5.1.1"
   }
 }
