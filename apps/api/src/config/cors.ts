@@ -1,7 +1,8 @@
 import type {CorsOptions} from "cors"
+import { env } from "./env.js"
 
 
 export const corsOptions: CorsOptions={
-    origin: process.env.WEB_ORIGIN!,
+    origin: env.WEB_ORIGIN,
     credentials: true,
 }
