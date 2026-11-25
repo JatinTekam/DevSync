@@ -109,6 +109,23 @@ Prisma is the planned ORM. Schema design and migrations should be
 introduced with the relevant feature rather than speculatively
 implementing every table at once.
 
+### Database migration workflow
+
+-   During development, use `prisma migrate dev` against the local
+    development database to create and apply migrations. Review and
+    commit the migration files together with the schema changes.
+-   During deployment, run `prisma migrate deploy` as a release step
+    against the production database. It applies committed migrations;
+    it does not create migrations or reset the database.
+-   Never run `prisma migrate dev`, reset commands, or development
+    database credentials against production. Run production migrations
+    once per release, not independently from every API instance.
+-   Keep database URLs separate per environment. Supply production
+    credentials through deployment secrets or environment variables;
+    never commit them or environment files containing credentials.
+-   Prefer backward-compatible schema changes when deployments may
+    overlap old and new API instances.
+
 ## 4. Proposed domain modules
 
 The following is a suggested backend organization. Adapt it to the
