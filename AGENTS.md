@@ -56,8 +56,7 @@ have progressed.
   ----------------------------------- -----------------------------------
   Repository                          Git repository initialized
 
-  Monorepo                            pnpm workspace intended and
-                                      workspace file created
+  Monorepo                            pnpm workspace configured
 
   Frontend                            React + TypeScript app created with
                                       Vite under `apps/web`
@@ -71,17 +70,30 @@ have progressed.
   UI components                       shadcn/ui selected, but
                                       initialization is not yet confirmed
 
-  Backend                             `apps/api` directory created;
-                                      backend implementation not yet
-                                      confirmed
+  Backend                             Express + TypeScript API
+                                      foundation in `apps/api` with
+                                      CORS, Zod environment validation,
+                                      and `/api/v1/health`; product
+                                      routes and authentication are
+                                      not implemented
 
   Shared package                      `packages/shared` directory
                                       created; package implementation not
                                       yet confirmed
 
-  Database                            PostgreSQL + Prisma are planned,
-                                      not confirmed as
-                                      installed/configured
+  Database                            PostgreSQL + Prisma 7 configured;
+                                      initial User, Organization,
+                                      Membership, and RefreshToken
+                                      schema, migration, generated
+                                      client, and client module present
+
+  API tests                           Vitest + Supertest configured;
+                                      health endpoint integration test
+                                      present
+
+  Authentication                      JWT access tokens with rotating
+                                      refresh tokens selected; auth
+                                      flows are not implemented
 
   Real-time                           Socket.IO is planned, not confirmed
                                       as installed/configured
@@ -96,7 +108,7 @@ have progressed.
 devsync/
 ├── apps/
 │   ├── web/                 # Vite + React + TypeScript frontend
-│   └── api/                 # Planned Express + TypeScript API
+│   └── api/                 # Express + TypeScript API foundation
 ├── packages/
 │   └── shared/              # Planned shared TypeScript contracts/types
 ├── docs/                    # Product and engineering documentation
@@ -325,6 +337,19 @@ pnpm --dir apps/web build
 
 # Run frontend lint (if the script exists)
 pnpm --dir apps/web lint
+
+# Run the API, API tests, and API build
+pnpm --filter api dev
+pnpm --filter api test
+pnpm --filter api build
+```
+
+For local Prisma commands in PowerShell:
+
+``` powershell
+$env:NODE_ENV = "development"
+pnpm --filter api exec prisma validate
+pnpm --filter api exec prisma migrate dev --name <descriptive_name>
 ```
 
 ## 9. Git and change-management rules
