@@ -1,6 +1,8 @@
 import cors from "cors";
 import express from "express";
 import { corsOptions } from "./config/cors.js";
+import { errorHandler } from "./middleware/error-handler.js";
+import { AppError } from "./shared/errors/app-error.js";
 
 export function createApp() {
   const app = express();
@@ -15,6 +17,12 @@ export function createApp() {
       service: "devsync-api",
     });
   });
+
+  app.use((_req, _res, next) => {
+    next(new AppError(404, "NOT_FOUND", "Route not found"));
+  });
+
+  app.use(errorHandler);
 
   return app;
 }
