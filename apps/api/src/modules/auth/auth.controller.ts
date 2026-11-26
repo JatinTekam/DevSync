@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import type { LoginInput, RegisterInput } from "./auth.schemas.js";
-import { InvalidRefreshTokenError, login, REFRESH_TOKEN_TTL_MS, refreshSession, register } from "./auth.service.js";
+import { InvalidRefreshTokenError, login, logoutSession, REFRESH_TOKEN_TTL_MS, refreshSession, register } from "./auth.service.js";
 import { env } from "../../config/env.js";
 import type { Request,Response } from "express";
 
@@ -82,4 +82,14 @@ export const refreshController: RequestHandler = async (req, res) => {
     }
     throw error;
   }
+};
+
+export const logoutController: RequestHandler = async (req, res) => {
+  try {
+    await logoutSession(readRefreshCookie(req.get("cookie")));
+  } finally {
+    clearRefreshCookie(res);
+  }
+
+  res.status(204).end();
 };

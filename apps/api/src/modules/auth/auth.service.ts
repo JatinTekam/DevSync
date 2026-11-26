@@ -211,3 +211,23 @@ export async function refreshSession(rawToken: string) {
     expiresAt: result.expiresAt,
   };
 }
+
+export async function logoutSession(rawToken: string | undefined): Promise<void> {
+  if (!rawToken) return;
+
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+
+  await prisma.$transaction(async (tx) => {
+    const token = await tx.refreshToken.findUnique({
+      where: { tokenHash },
+      select: { familyId: true },
+    });
+
+    if (!token) return;
+
+    await tx.refreshToken.updateMany({
+      where: { familyId: token.familyId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  });
+}

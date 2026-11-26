@@ -100,4 +100,47 @@ describe("POST /api/v1/auth/login", () => {
     expect(response.status).toBe(401);
     expect(response.body.error.code).toBe("INVALID_CREDENTIALS");
   });
+
+  it("revokes the refresh-token family on logout", async () => {
+  const account = await createRegisteredUser();
+
+  const loginResponse = await request(createApp())
+    .post("/api/v1/auth/login")
+    .send({ email: account.email, password: account.password });
+
+  expect(loginResponse.status).toBe(200);
+
+  const setCookieHeader = loginResponse.headers["set-cookie"];
+  const cookies = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : setCookieHeader
+      ? [setCookieHeader]
+      : [];
+
+  const refreshCookie = cookies.find((value: string) =>
+    value.startsWith("devsync_refresh="),
+  );
+
+  if (!refreshCookie) {
+    throw new Error("Login did not set the refresh-token cookie");
+  }
+
+  const cookiePair = refreshCookie.split(";")[0];
+  if (!cookiePair) {
+    throw new Error("Refresh-token cookie was empty");
+  }
+
+  const logoutResponse = await request(createApp())
+    .post("/api/v1/auth/logout")
+    .set("Cookie", cookiePair);
+
+  expect(logoutResponse.status).toBe(204);
+
+  const refreshResponse = await request(createApp())
+    .post("/api/v1/auth/refresh")
+    .set("Cookie", cookiePair);
+
+  expect(refreshResponse.status).toBe(401);
+  expect(refreshResponse.body.error.code).toBe("INVALID_REFRESH_TOKEN");
+});
 });
