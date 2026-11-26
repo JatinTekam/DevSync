@@ -2,13 +2,9 @@ import type { ErrorRequestHandler } from "express";
 import { Prisma } from "../generated/prisma/client.js";
 import { ZodError } from "zod";
 import { AppError } from "../shared/errors/app-error.js";
+import { logger } from "../shared/logger.js";
 
-export const errorHandler: ErrorRequestHandler = (
-  error,
-  _req,
-  res,
-  next,
-) => {
+export const errorHandler: ErrorRequestHandler = (error, _req, res, next) => {
   if (res.headersSent) {
     next(error);
     return;
@@ -54,11 +50,15 @@ export const errorHandler: ErrorRequestHandler = (
     }
   }
 
-  console.error("Unhandled API error", {
-    name: error instanceof Error ? error.name : "UnknownError",
-  });
+  logger.error(
+    { errorName: error instanceof Error ? error.name : "UnknownError" },
+    "Unhandled API error",
+  );
 
   res.status(500).json({
-    error: { code: "INTERNAL_SERVER_ERROR", message: "An unexpected error occurred" },
+    error: {
+      code: "INTERNAL_SERVER_ERROR",
+      message: "An unexpected error occurred",
+    },
   });
 };
