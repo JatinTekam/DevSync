@@ -10,8 +10,9 @@ overlapping changes before they become merge problems.
 > **Project status:** Early development. The repository has a Vite +
 > React + TypeScript frontend and an initial Express + TypeScript API.
 > PostgreSQL/Prisma schema and migration tooling, environment validation,
-> and a health endpoint are set up. Product authentication, repository
-> integrations, and the dashboard data flows are not implemented yet.
+> a health endpoint, and the API registration endpoint are implemented.
+> Login and token flows, repository integrations, and dashboard data
+> flows are not implemented yet.
 
 ## Product goals
 
@@ -80,11 +81,13 @@ Implemented foundation:
 -   Node.js + Express + TypeScript API scaffold
 -   Zod environment validation and CORS configuration
 -   PostgreSQL + Prisma 7 schema, initial migration, and generated client
--   Vitest + Supertest health endpoint integration test
+-   Registration endpoint with password hashing and transactional
+    user/organization/membership creation
+-   Vitest + Supertest health and registration validation tests
 
 Planned:
 
--   JWT access-token authentication with rotating refresh tokens
+-   Login and JWT access-token authentication with rotating refresh tokens
 -   Domain routes, services, repositories, and persistence workflows
 -   Socket.IO, Pino, and Docker
 
@@ -177,7 +180,8 @@ pnpm --filter api dev
 The health endpoint is available at
 `http://localhost:3000/api/v1/health`.
 
-Run API tests and build:
+After configuring the isolated API test database below, run API tests and
+build:
 
 ``` bash
 pnpm --filter api test
@@ -185,26 +189,55 @@ pnpm --filter api build
 ```
 
 The API build generates the Prisma client before TypeScript compilation.
-For local Prisma CLI commands, set `NODE_ENV=development` so the Prisma
-config loads `.env.development`. In PowerShell:
+`build` selects development configuration; `build:prod` selects
+production configuration:
+
+``` bash
+pnpm --filter api build
+pnpm --filter api build:prod
+```
+
+#### Isolated API test database
+
+API tests require `TEST_DATABASE_URL`. Use a dedicated local database so
+tests that write records cannot modify development data. Create it once
+(skip this command if it already exists):
+
+``` cmd
+psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE devsync_test;"
+```
+
+In the same **Command Prompt** window, replace `YOUR_PASSWORD` with your
+local PostgreSQL password. Adjust the username, host, or port if your
+local PostgreSQL setup differs. Do not commit or share the real URL.
+
+``` cmd
+set "NODE_ENV=development"
+set "DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/devsync_test"
+set "TEST_DATABASE_URL=%DATABASE_URL%"
+pnpm --filter api exec prisma migrate deploy
+pnpm --filter api test
+```
+
+`prisma migrate deploy` applies existing migration files to the database
+in `DATABASE_URL`; it does not create the database. Test setup requires
+`TEST_DATABASE_URL` and uses it as the API database URL. These variables
+last only for the current Command Prompt session.
+
+For direct Prisma CLI commands outside the test setup, set
+`NODE_ENV=development` so the Prisma config loads
+`apps/api/.env.development`. In PowerShell:
 
 ``` powershell
 $env:NODE_ENV = "development"
 pnpm --filter api exec prisma validate
-```
-
-Use `prisma migrate dev` only against the local development database.
-In PowerShell, with `NODE_ENV` set as above, create and apply a migration
-with:
-
-``` powershell
 pnpm --filter api exec prisma migrate dev --name add_feature
 ```
 
+Use `prisma migrate dev` only against the local development database.
 Production releases apply committed migrations with
-`prisma migrate deploy`. See
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the migration and
-secrets guidance.
+`prisma migrate deploy`. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+for migration and secrets guidance.
 
 ## Development principles
 

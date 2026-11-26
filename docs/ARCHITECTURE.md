@@ -115,7 +115,8 @@ than speculatively implementing every planned table.
 The selected authentication design is short-lived JWT access tokens
 with rotating, persisted refresh tokens. Access-token verification can
 be stateless; refresh-token hashes are stored so tokens can be rotated
-and revoked. The authentication flow is not implemented yet.
+and revoked. The registration endpoint is implemented; login and the
+access/refresh-token lifecycle are not implemented yet.
 
 ### Database migration workflow
 
@@ -133,6 +134,19 @@ and revoked. The authentication flow is not implemented yet.
     never commit them or environment files containing credentials.
 -   Prefer backward-compatible schema changes when deployments may
     overlap old and new API instances.
+
+### API test database
+
+API tests require `TEST_DATABASE_URL`; `apps/api/tests/setup.ts` fails
+early if it is missing. Point it at a dedicated test database, not the
+development or production database. Create the database before applying
+migrations. `prisma migrate deploy` applies the committed migration files
+to the database selected by `DATABASE_URL`; it does not create a
+database or generate a migration.
+
+Keep test database credentials in local environment variables or
+ignored environment files. Never commit them or paste them into logs,
+documentation, or chat.
 
 ## 4. Proposed domain modules
 
@@ -402,6 +416,10 @@ Add tests alongside each feature.
 -   **Security tests:** cross-tenant access attempts and invalid webhook
     requests.
 
+Database integration tests must use an isolated test database configured
+through `TEST_DATABASE_URL`; never point test setup at development or
+production data.
+
 Do not claim a test passed unless it was actually run and passed.
 
 ## 14. Deployment evolution
@@ -453,8 +471,9 @@ consequences.
                           rotating refresh tokens database lookup; stored
                                                   refresh-token hashes
                                                   allow rotation and
-                                                  revocation. Auth flows
-                                                  remain unimplemented.
+                                                  revocation. Registration
+                                                  is implemented; token
+                                                  flows remain planned.
   -----------------------------------------------------------------------
 
 ## 16. Keeping this document accurate

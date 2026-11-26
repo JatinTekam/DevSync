@@ -4,6 +4,7 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import type { RegisterInput } from "./auth.schemas.js";
+import { unknown } from "zod";
 
 export class EmailAlreadyRegisteredError extends AppError {
   constructor() {
@@ -31,13 +32,22 @@ export async function register(input: RegisterInput) {
   const passwordHash = await argon2.hash(input.password, {
     type: argon2.argon2id,
   });
-
-  try {
+  
     return await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: { email: input.email, passwordHash },
         select: { id: true, email: true },
-      });
+      })
+      .catch((error: unknown)=>{
+        if(
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ){
+          throw new EmailAlreadyRegisteredError();
+        }
+
+        throw error;
+      })
 
       const organization = await tx.organization.create({
         data: {
@@ -58,26 +68,4 @@ export async function register(input: RegisterInput) {
 
       return { user, organization, membership };
     });
-  } catch (error) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      const target = error.meta?.target;
-      const isEmailConflict = Array.isArray(target)
-        ? target.some(
-            (field) =>
-              typeof field === "string" &&
-              field.toLowerCase().includes("email"),
-          )
-        : typeof target === "string" &&
-          target.toLowerCase().includes("email");
-
-      if (isEmailConflict) {
-        throw new EmailAlreadyRegisteredError();
-      }
-    }
-
-    throw error;
-  }
 }
