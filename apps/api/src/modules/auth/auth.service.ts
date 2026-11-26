@@ -25,6 +25,12 @@ export class InvalidCredentialsError extends AppError {
   }
 }
 
+export class InvalidRefreshTokenError extends AppError {
+  constructor() {
+    super(401, "INVALID_REFRESH_TOKEN", "Refresh token is invalid or expired");
+  }
+}
+
 export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function createOrganizationSlug(name: string): string {
@@ -122,4 +128,86 @@ async function createAccessToken(userId: string): Promise<string> {
     .setIssuedAt()
     .setExpirationTime("15m")
     .sign(secret);
+}
+
+export async function refreshSession(rawToken: string) {
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+
+  const result = await prisma.$transaction(async (tx) => {
+    const current = await tx.refreshToken.findUnique({
+      where: { tokenHash },
+    });
+
+    if (!current) {
+      return { ok: false as const };
+    }
+
+    const now = new Date();
+
+    if (current.revokedAt || current.expiresAt <= now) {
+      await tx.refreshToken.updateMany({
+        where: { familyId: current.familyId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      return { ok: false as const };
+    }
+
+    const claimed = await tx.refreshToken.updateMany({
+      where: { id: current.id, revokedAt: null },
+      data: { revokedAt: now },
+    });
+
+    if (claimed.count !== 1) {
+      await tx.refreshToken.updateMany({
+        where: { familyId: current.familyId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      return { ok: false as const };
+    }
+
+    const user = await tx.user.findUnique({
+      where: { id: current.userId },
+      select: { id: true, email: true },
+    });
+
+    if (!user) {
+      await tx.refreshToken.updateMany({
+        where: { familyId: current.familyId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+      return { ok: false as const };
+    }
+
+    const nextRefreshToken = randomBytes(32).toString("base64url");
+
+    await tx.refreshToken.create({
+      data: {
+        tokenHash: createHash("sha256")
+          .update(nextRefreshToken)
+          .digest("hex"),
+        familyId: current.familyId,
+        userId: current.userId,
+        expiresAt: current.expiresAt,
+      },
+    });
+
+    return {
+      ok: true as const,
+      user,
+      accessToken: await createAccessToken(user.id),
+      refreshToken: nextRefreshToken,
+      expiresAt: current.expiresAt,
+    };
+  });
+
+  if (!result.ok) {
+    throw new InvalidRefreshTokenError();
+  }
+
+  return {
+    user: result.user,
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+    expiresAt: result.expiresAt,
+  };
 }
