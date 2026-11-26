@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "scripts": {
+    "dev:api": "pnpm --filter api dev",
+    "build:api": "pnpm --filter api build",
+    "dev:web": "pnpm --filter web dev"
+  }
+}

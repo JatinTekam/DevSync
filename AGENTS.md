@@ -56,8 +56,7 @@ have progressed.
   ----------------------------------- -----------------------------------
   Repository                          Git repository initialized
 
-  Monorepo                            pnpm workspace intended and
-                                      workspace file created
+  Monorepo                            pnpm workspace configured
 
   Frontend                            React + TypeScript app created with
                                       Vite under `apps/web`
@@ -71,17 +70,33 @@ have progressed.
   UI components                       shadcn/ui selected, but
                                       initialization is not yet confirmed
 
-  Backend                             `apps/api` directory created;
-                                      backend implementation not yet
-                                      confirmed
+  Backend                             Express + TypeScript API
+                                      foundation in `apps/api` with
+                                      CORS, Zod environment validation,
+                                      `/api/v1/health`, and
+                                      `POST /api/v1/auth/register`;
+                                      login and token flows are not
+                                      implemented
 
   Shared package                      `packages/shared` directory
                                       created; package implementation not
                                       yet confirmed
 
-  Database                            PostgreSQL + Prisma are planned,
-                                      not confirmed as
-                                      installed/configured
+  Database                            PostgreSQL + Prisma 7 configured;
+                                      initial User, Organization,
+                                      Membership, and RefreshToken
+                                      schema, migration, generated
+                                      client, and client module present
+
+  API tests                           Vitest + Supertest configured;
+                                      health and registration validation
+                                      tests present; test setup requires
+                                      an isolated `TEST_DATABASE_URL`
+
+  Authentication                      JWT access tokens with rotating
+                                      refresh tokens selected;
+                                      registration implemented, login
+                                      and token flows not implemented
 
   Real-time                           Socket.IO is planned, not confirmed
                                       as installed/configured
@@ -96,7 +111,7 @@ have progressed.
 devsync/
 ├── apps/
 │   ├── web/                 # Vite + React + TypeScript frontend
-│   └── api/                 # Planned Express + TypeScript API
+│   └── api/                 # Express + TypeScript API foundation
 ├── packages/
 │   └── shared/              # Planned shared TypeScript contracts/types
 ├── docs/                    # Product and engineering documentation
@@ -325,6 +340,45 @@ pnpm --dir apps/web build
 
 # Run frontend lint (if the script exists)
 pnpm --dir apps/web lint
+
+# Run the API, API tests, and API build
+pnpm --filter api dev
+pnpm --filter api test
+pnpm --filter api build
+pnpm --filter api build:prod
+```
+
+`apps/api/tests/setup.ts` requires `TEST_DATABASE_URL` and assigns it as
+the database URL used by the API in tests. Use an isolated test database;
+never run database-writing tests against development or production data.
+Create the test database once (skip if it already exists):
+
+``` cmd
+psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE devsync_test;"
+```
+
+For tests and test database migrations in **Command Prompt**, use the
+same terminal session. Replace the placeholder password locally, adjust
+the connection details for your PostgreSQL setup, and never commit or
+share the real URL:
+
+``` cmd
+set "NODE_ENV=development"
+set "DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/devsync_test"
+set "TEST_DATABASE_URL=%DATABASE_URL%"
+pnpm --filter api exec prisma migrate deploy
+pnpm --filter api test
+```
+
+`prisma migrate deploy` applies existing migration files to the database
+in `DATABASE_URL`; it does not create the database. Direct Prisma CLI
+commands require `NODE_ENV` to be set so `prisma7.config.ts` selects the
+matching environment file. For local Prisma commands in PowerShell:
+
+``` powershell
+$env:NODE_ENV = "development"
+pnpm --filter api exec prisma validate
+pnpm --filter api exec prisma migrate dev --name <descriptive_name>
 ```
 
 ## 9. Git and change-management rules
@@ -396,6 +450,6 @@ changes.
 
 ------------------------------------------------------------------------
 
-**Last updated:** 2026-11-24\
+**Last updated:** 2026-11-26\
 **Document status:** Initial project guidance; update as implementation
 evolves.

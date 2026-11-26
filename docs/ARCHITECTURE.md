@@ -103,11 +103,50 @@ flowchart TB
 
 PostgreSQL is the planned source of truth for users, organizations,
 memberships, projects, connected repositories, provider events, and
-notifications.
+notifications. Prisma 7 with the PostgreSQL driver adapter is configured
+for `apps/api`. The initial schema and migration cover users,
+organizations, memberships, and refresh tokens. A generated Prisma
+client and shared client module are present; product authentication and
+domain data flows are not implemented yet.
 
-Prisma is the planned ORM. Schema design and migrations should be
-introduced with the relevant feature rather than speculatively
-implementing every table at once.
+Add schema and migrations alongside the feature that needs them rather
+than speculatively implementing every planned table.
+
+The selected authentication design is short-lived JWT access tokens
+with rotating, persisted refresh tokens. Access-token verification can
+be stateless; refresh-token hashes are stored so tokens can be rotated
+and revoked. The registration endpoint is implemented; login and the
+access/refresh-token lifecycle are not implemented yet.
+
+### Database migration workflow
+
+-   During development, use `prisma migrate dev` against the local
+    development database to create and apply migrations. Review and
+    commit the migration files together with the schema changes.
+-   During deployment, run `prisma migrate deploy` as a release step
+    against the production database. It applies committed migrations;
+    it does not create migrations or reset the database.
+-   Never run `prisma migrate dev`, reset commands, or development
+    database credentials against production. Run production migrations
+    once per release, not independently from every API instance.
+-   Keep database URLs separate per environment. Supply production
+    credentials through deployment secrets or environment variables;
+    never commit them or environment files containing credentials.
+-   Prefer backward-compatible schema changes when deployments may
+    overlap old and new API instances.
+
+### API test database
+
+API tests require `TEST_DATABASE_URL`; `apps/api/tests/setup.ts` fails
+early if it is missing. Point it at a dedicated test database, not the
+development or production database. Create the database before applying
+migrations. `prisma migrate deploy` applies the committed migration files
+to the database selected by `DATABASE_URL`; it does not create a
+database or generate a migration.
+
+Keep test database credentials in local environment variables or
+ignored environment files. Never commit them or paste them into logs,
+documentation, or chat.
 
 ## 4. Proposed domain modules
 
@@ -377,6 +416,10 @@ Add tests alongside each feature.
 -   **Security tests:** cross-tenant access attempts and invalid webhook
     requests.
 
+Database integration tests must use an isolated test database configured
+through `TEST_DATABASE_URL`; never point test setup at development or
+production data.
+
 Do not claim a test passed unless it was actually run and passed.
 
 ## 14. Deployment evolution
@@ -418,6 +461,19 @@ consequences.
   2026-11-24              Use Tailwind CSS v4 and Flexible styling and
                           shadcn/ui               locally owned reusable
                                                   components
+
+  2026-11-25              Use Prisma 7 with       Keeps PostgreSQL access
+                          PostgreSQL              type-safe and migrations
+                                                  versioned
+
+  2026-11-25              Use short-lived JWT     Access tokens can be
+                          access tokens with      verified without a
+                          rotating refresh tokens database lookup; stored
+                                                  refresh-token hashes
+                                                  allow rotation and
+                                                  revocation. Registration
+                                                  is implemented; token
+                                                  flows remain planned.
   -----------------------------------------------------------------------
 
 ## 16. Keeping this document accurate
