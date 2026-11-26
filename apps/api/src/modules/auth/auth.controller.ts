@@ -1,8 +1,9 @@
 import type { RequestHandler } from "express";
 import type { LoginInput, RegisterInput } from "./auth.schemas.js";
-import { InvalidRefreshTokenError, login, logoutSession, REFRESH_TOKEN_TTL_MS, refreshSession, register } from "./auth.service.js";
+import { getCurrentUser, InvalidRefreshTokenError, login, logoutSession, REFRESH_TOKEN_TTL_MS, refreshSession, register } from "./auth.service.js";
 import { env } from "../../config/env.js";
 import type { Request,Response } from "express";
+import { AuthenticationRequiredError } from "../../middleware/require-auth.js";
 
 const refreshCookieName = "devsync_refresh";
 
@@ -92,4 +93,20 @@ export const logoutController: RequestHandler = async (req, res) => {
   }
 
   res.status(204).end();
+};
+
+export const meController: RequestHandler = async (_req, res) => {
+  const userId: unknown = res.locals.userId;
+
+  if (typeof userId !== "string") {
+    throw new AuthenticationRequiredError();
+  }
+
+  const user = await getCurrentUser(userId);
+
+  if (!user) {
+    throw new AuthenticationRequiredError();
+  }
+
+  res.status(200).json({ user });
 };

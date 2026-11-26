@@ -144,3 +144,22 @@ describe("POST /api/v1/auth/login", () => {
   expect(refreshResponse.body.error.code).toBe("INVALID_REFRESH_TOKEN");
 });
 });
+
+describe("GET /api/v1/auth/me", () => {
+  it("returns the authenticated user", async () => {
+    const account = await createRegisteredUser();
+
+    const loginResponse = await request(createApp())
+      .post("/api/v1/auth/login")
+      .send({ email: account.email, password: account.password });
+
+    const accessToken = loginResponse.body.accessToken;
+
+    const response = await request(createApp())
+      .get("/api/v1/auth/me")
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.user.email).toBe(account.email);
+  });
+});

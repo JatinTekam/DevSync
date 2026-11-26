@@ -231,3 +231,10 @@ export async function logoutSession(rawToken: string | undefined): Promise<void>
     });
   });
 }
+
+export async function getCurrentUser(userId: string) {
+  return prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true },
+  });
+}
