@@ -1,10 +1,11 @@
-import { randomUUID } from "node:crypto";
 import * as argon2 from "argon2";
 import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
-import type { RegisterInput } from "./auth.schemas.js";
-import { unknown } from "zod";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { SignJWT } from "jose";
+import { env } from "../../config/env.js";
+import type { LoginInput, RegisterInput } from "./auth.schemas.js";
 
 export class EmailAlreadyRegisteredError extends AppError {
   constructor() {
@@ -15,6 +16,16 @@ export class EmailAlreadyRegisteredError extends AppError {
     );
   }
 }
+
+
+
+export class InvalidCredentialsError extends AppError {
+  constructor() {
+    super(401, "INVALID_CREDENTIALS", "Email or password is incorrect");
+  }
+}
+
+export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function createOrganizationSlug(name: string): string {
   const base =
@@ -32,7 +43,7 @@ export async function register(input: RegisterInput) {
   const passwordHash = await argon2.hash(input.password, {
     type: argon2.argon2id,
   });
-  
+
     return await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: { email: input.email, passwordHash },
@@ -68,4 +79,47 @@ export async function register(input: RegisterInput) {
 
       return { user, organization, membership };
     });
+}
+
+export async function login(input: LoginInput) {
+  const user = await prisma.user.findUnique({
+    where: { email: input.email },
+    select: { id: true, email: true, passwordHash: true },
+  });
+
+  if (!user || !(await argon2.verify(user.passwordHash, input.password))) {
+    throw new InvalidCredentialsError();
+  }
+
+  const refreshToken = randomBytes(32).toString("base64url");
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+
+  await prisma.refreshToken.create({
+    data: {
+      tokenHash: createHash("sha256").update(refreshToken).digest("hex"),
+      familyId: randomUUID(),
+      userId: user.id,
+      expiresAt,
+    },
+  });
+
+  return {
+    user: { id: user.id, email: user.email },
+    accessToken: await createAccessToken(user.id),
+    refreshToken,
+  };
+}
+
+
+async function createAccessToken(userId: string): Promise<string> {
+  const secret = new TextEncoder().encode(env.JWT_ACCESS_SECRET);
+
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuer("devsync-api")
+    .setAudience("devsync-web")
+    .setSubject(userId)
+    .setIssuedAt()
+    .setExpirationTime("15m")
+    .sign(secret);
 }
