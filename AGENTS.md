@@ -73,9 +73,10 @@ have progressed.
   Backend                             Express + TypeScript API
                                       foundation in `apps/api` with
                                       CORS, Zod environment validation,
-                                      and `/api/v1/health`; product
-                                      routes and authentication are
-                                      not implemented
+                                      `/api/v1/health`, and
+                                      `POST /api/v1/auth/register`;
+                                      login and token flows are not
+                                      implemented
 
   Shared package                      `packages/shared` directory
                                       created; package implementation not
@@ -88,12 +89,14 @@ have progressed.
                                       client, and client module present
 
   API tests                           Vitest + Supertest configured;
-                                      health endpoint integration test
-                                      present
+                                      health and registration validation
+                                      tests present; test setup requires
+                                      an isolated `TEST_DATABASE_URL`
 
   Authentication                      JWT access tokens with rotating
-                                      refresh tokens selected; auth
-                                      flows are not implemented
+                                      refresh tokens selected;
+                                      registration implemented, login
+                                      and token flows not implemented
 
   Real-time                           Socket.IO is planned, not confirmed
                                       as installed/configured
@@ -342,9 +345,35 @@ pnpm --dir apps/web lint
 pnpm --filter api dev
 pnpm --filter api test
 pnpm --filter api build
+pnpm --filter api build:prod
 ```
 
-For local Prisma commands in PowerShell:
+`apps/api/tests/setup.ts` requires `TEST_DATABASE_URL` and assigns it as
+the database URL used by the API in tests. Use an isolated test database;
+never run database-writing tests against development or production data.
+Create the test database once (skip if it already exists):
+
+``` cmd
+psql -h localhost -p 5432 -U postgres -d postgres -c "CREATE DATABASE devsync_test;"
+```
+
+For tests and test database migrations in **Command Prompt**, use the
+same terminal session. Replace the placeholder password locally, adjust
+the connection details for your PostgreSQL setup, and never commit or
+share the real URL:
+
+``` cmd
+set "NODE_ENV=development"
+set "DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/devsync_test"
+set "TEST_DATABASE_URL=%DATABASE_URL%"
+pnpm --filter api exec prisma migrate deploy
+pnpm --filter api test
+```
+
+`prisma migrate deploy` applies existing migration files to the database
+in `DATABASE_URL`; it does not create the database. Direct Prisma CLI
+commands require `NODE_ENV` to be set so `prisma7.config.ts` selects the
+matching environment file. For local Prisma commands in PowerShell:
 
 ``` powershell
 $env:NODE_ENV = "development"
@@ -421,6 +450,6 @@ changes.
 
 ------------------------------------------------------------------------
 
-**Last updated:** 2026-11-24\
+**Last updated:** 2026-11-26\
 **Document status:** Initial project guidance; update as implementation
 evolves.
